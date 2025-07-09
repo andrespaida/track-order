@@ -10,10 +10,14 @@ const resolvers = {
       const order = rows[0]
 
       return {
-        ...order,
-        createdAt: order.createdAt instanceof Date
-          ? order.createdAt.toISOString()
-          : order.createdAt
+        id: order.id,
+        userId: order.userId,
+        products: order.products,
+        total: order.total,
+        status: order.status,
+        createdAt: order.created_at
+          ? new Date(order.created_at).toISOString()
+          : null
       }
     }
   }
