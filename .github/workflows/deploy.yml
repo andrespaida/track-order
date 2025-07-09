@@ -1,0 +1,59 @@
+name: Deploy track-order to EC2 (qa)
+
+on:
+  push:
+    branches:
+      - qa
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Copy project files to EC2
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        source: "." 
+        target: "track-order-app"
+
+    - name: SSH into EC2 and deploy
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        script: |
+          # Ensure Docker is installed
+          if ! command -v docker &> /dev/null; then
+            echo "🔧 Installing Docker..."
+            sudo apt-get update
+            sudo apt-get install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+          fi
+
+          # Navigate to project directory
+          cd track-order-app
+
+          # Build Docker image
+          echo "🐳 Building Docker image..."
+          sudo docker build -t track-order:latest .
+
+          # Stop and remove old container if it exists
+          echo "🛑 Stopping old container (if any)..."
+          sudo docker stop track-order || true
+          sudo docker rm track-order || true
+
+          # Run new container
+          echo "🚀 Running container..."
+          sudo docker run -d \
+            --name track-order \
+            --restart=always \
+            -p 4003:4003 \
+            track-order:latest
